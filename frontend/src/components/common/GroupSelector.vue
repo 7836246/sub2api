@@ -51,7 +51,7 @@ interface Props {
   modelValue: number[]
   groups: AdminGroup[]
   platform?: GroupPlatform // Optional platform filter
-  mixedScheduling?: boolean // For antigravity accounts: allow anthropic/gemini groups
+  mixedScheduling?: boolean // For antigravity/cursor accounts: allow anthropic/gemini groups
 }
 
 const props = defineProps<Props>()
@@ -68,6 +68,12 @@ const filteredGroups = computed(() => {
   if (props.platform === 'antigravity' && props.mixedScheduling) {
     return props.groups.filter(
       (g) => g.platform === 'antigravity' || g.platform === 'anthropic' || g.platform === 'gemini'
+    )
+  }
+  // cursor 账户启用混合调度后，可选择 anthropic 分组（后端负责 Anthropic→Cursor 格式转换）
+  if (props.platform === 'cursor' && props.mixedScheduling) {
+    return props.groups.filter(
+      (g) => g.platform === 'cursor' || g.platform === 'anthropic'
     )
   }
   // 默认：只能选择同 platform 的分组

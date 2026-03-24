@@ -76,6 +76,63 @@ const soraModels = [
   'prompt-enhance-long-10s', 'prompt-enhance-long-15s', 'prompt-enhance-long-20s'
 ]
 
+// Cursor 支持的模型（来自 Cursor API /models 接口）
+const cursorModels = [
+  'default',
+  'composer-2-fast', 'composer-2', 'composer-1.5',
+  // GPT-5.3 Codex
+  'gpt-5.3-codex-low', 'gpt-5.3-codex-low-fast',
+  'gpt-5.3-codex', 'gpt-5.3-codex-fast',
+  'gpt-5.3-codex-high', 'gpt-5.3-codex-high-fast',
+  'gpt-5.3-codex-xhigh', 'gpt-5.3-codex-xhigh-fast',
+  // GPT-5.3 Codex Spark
+  'gpt-5.3-codex-spark-preview-low', 'gpt-5.3-codex-spark-preview',
+  'gpt-5.3-codex-spark-preview-high', 'gpt-5.3-codex-spark-preview-xhigh',
+  // GPT-5.2
+  'gpt-5.2', 'gpt-5.2-low', 'gpt-5.2-fast', 'gpt-5.2-low-fast',
+  'gpt-5.2-high', 'gpt-5.2-high-fast', 'gpt-5.2-xhigh', 'gpt-5.2-xhigh-fast',
+  // GPT-5.2 Codex
+  'gpt-5.2-codex-low', 'gpt-5.2-codex-low-fast',
+  'gpt-5.2-codex', 'gpt-5.2-codex-fast',
+  'gpt-5.2-codex-high', 'gpt-5.2-codex-high-fast',
+  'gpt-5.2-codex-xhigh', 'gpt-5.2-codex-xhigh-fast',
+  // GPT-5.1
+  'gpt-5.1-low', 'gpt-5.1', 'gpt-5.1-high',
+  // GPT-5.1 Codex Mini
+  'gpt-5.1-codex-mini-low', 'gpt-5.1-codex-mini', 'gpt-5.1-codex-mini-high',
+  // GPT-5.1 Codex Max
+  'gpt-5.1-codex-max-low', 'gpt-5.1-codex-max-low-fast',
+  'gpt-5.1-codex-max-medium', 'gpt-5.1-codex-max-medium-fast',
+  'gpt-5.1-codex-max-high', 'gpt-5.1-codex-max-high-fast',
+  'gpt-5.1-codex-max-xhigh', 'gpt-5.1-codex-max-xhigh-fast',
+  // GPT-5.4
+  'gpt-5.4-low', 'gpt-5.4-medium', 'gpt-5.4-medium-fast',
+  'gpt-5.4-high', 'gpt-5.4-high-fast',
+  'gpt-5.4-xhigh', 'gpt-5.4-xhigh-fast',
+  // GPT-5.4 Mini
+  'gpt-5.4-mini-none', 'gpt-5.4-mini-low', 'gpt-5.4-mini-medium',
+  'gpt-5.4-mini-high', 'gpt-5.4-mini-xhigh',
+  // GPT-5.4 Nano
+  'gpt-5.4-nano-none', 'gpt-5.4-nano-low', 'gpt-5.4-nano-medium',
+  'gpt-5.4-nano-high', 'gpt-5.4-nano-xhigh',
+  // GPT-5 Mini
+  'gpt-5-mini',
+  // Claude
+  'claude-4.6-sonnet-medium', 'claude-4.6-sonnet-medium-thinking',
+  'claude-4.6-opus-high', 'claude-4.6-opus-high-thinking',
+  'claude-4.6-opus-max', 'claude-4.6-opus-max-thinking',
+  'claude-4.5-opus-high', 'claude-4.5-opus-high-thinking',
+  'claude-4.5-sonnet', 'claude-4.5-sonnet-thinking',
+  'claude-4-sonnet', 'claude-4-sonnet-1m',
+  'claude-4-sonnet-thinking', 'claude-4-sonnet-1m-thinking',
+  // Gemini
+  'gemini-3.1-pro', 'gemini-3-pro', 'gemini-3-flash',
+  // Grok
+  'grok-4-20', 'grok-4-20-thinking',
+  // Kimi
+  'kimi-k2.5',
+]
+
 // Antigravity 官方支持的模型（精确匹配）
 // 基于官方 API 返回的模型列表，只支持 Claude 4.5+ 和 Gemini 2.5+
 const antigravityModels = [
@@ -331,6 +388,22 @@ const antigravityPresetMappings = [
   { label: 'Opus 4.6-thinking', from: 'claude-opus-4-6-thinking', to: 'claude-opus-4-6-thinking', color: 'bg-pink-100 text-pink-700 hover:bg-pink-200 dark:bg-pink-900/30 dark:text-pink-400' }
 ]
 
+// Cursor 预设映射（基于 Cursor API 真实模型 ID）
+const cursorPresetMappings = [
+  { label: 'Auto', from: 'default', to: 'default', color: 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-900/30 dark:text-gray-400' },
+  { label: 'Composer 2 Fast', from: 'composer-2-fast', to: 'composer-2-fast', color: 'bg-cyan-100 text-cyan-700 hover:bg-cyan-200 dark:bg-cyan-900/30 dark:text-cyan-400' },
+  { label: 'Composer 2', from: 'composer-2', to: 'composer-2', color: 'bg-teal-100 text-teal-700 hover:bg-teal-200 dark:bg-teal-900/30 dark:text-teal-400' },
+  { label: 'GPT-5.4 1M', from: 'gpt-5.4-medium', to: 'gpt-5.4-medium', color: 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400' },
+  { label: 'GPT-5.4 High', from: 'gpt-5.4-high', to: 'gpt-5.4-high', color: 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400' },
+  { label: 'GPT-5.3 Codex', from: 'gpt-5.3-codex', to: 'gpt-5.3-codex', color: 'bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400' },
+  { label: 'GPT-5.3 Codex High', from: 'gpt-5.3-codex-high', to: 'gpt-5.3-codex-high', color: 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400' },
+  { label: 'Opus 4.6 Thinking', from: 'claude-4.6-opus-high-thinking', to: 'claude-4.6-opus-high-thinking', color: 'bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-400' },
+  { label: 'Sonnet 4.6 1M', from: 'claude-4.6-sonnet-medium', to: 'claude-4.6-sonnet-medium', color: 'bg-violet-100 text-violet-700 hover:bg-violet-200 dark:bg-violet-900/30 dark:text-violet-400' },
+  { label: 'Sonnet 4.5 1M', from: 'claude-4.5-sonnet', to: 'claude-4.5-sonnet', color: 'bg-pink-100 text-pink-700 hover:bg-pink-200 dark:bg-pink-900/30 dark:text-pink-400' },
+  { label: 'Gemini 3.1 Pro', from: 'gemini-3.1-pro', to: 'gemini-3.1-pro', color: 'bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400' },
+  { label: 'Grok 4.20', from: 'grok-4-20', to: 'grok-4-20', color: 'bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-400' },
+]
+
 // Bedrock 预设映射（与后端 DefaultBedrockModelMapping 保持一致）
 const bedrockPresetMappings = [
   { label: 'Opus 4.6', from: 'claude-opus-4-6', to: 'us.anthropic.claude-opus-4-6-v1', color: 'bg-pink-100 text-pink-700 hover:bg-pink-200 dark:bg-pink-900/30 dark:text-pink-400' },
@@ -387,6 +460,7 @@ export function getModelsByPlatform(platform: string): string[] {
     case 'gemini': return geminiModels
     case 'sora': return soraModels
     case 'antigravity': return antigravityModels
+    case 'cursor': return cursorModels
     case 'zhipu': return zhipuModels
     case 'qwen': return qwenModels
     case 'deepseek': return deepseekModels
@@ -412,6 +486,7 @@ export function getPresetMappingsByPlatform(platform: string) {
   if (platform === 'gemini') return geminiPresetMappings
   if (platform === 'sora') return soraPresetMappings
   if (platform === 'antigravity') return antigravityPresetMappings
+  if (platform === 'cursor') return cursorPresetMappings
   if (platform === 'bedrock') return bedrockPresetMappings
   return anthropicPresetMappings
 }

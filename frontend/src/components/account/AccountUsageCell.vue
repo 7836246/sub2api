@@ -364,6 +364,86 @@
       </div>
     </template>
 
+    <!-- Cursor accounts: show plan & membership info -->
+    <template v-else-if="account.platform === 'cursor'">
+      <!-- Needs reauth (401) -->
+      <div v-if="cursorNeedsReauth" class="space-y-1">
+        <span class="inline-block rounded px-1.5 py-0.5 text-[10px] font-medium bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300">
+          {{ t('admin.accounts.needsReauth') }}
+        </span>
+      </div>
+      <!-- Degraded error (non-auth) -->
+      <div v-else-if="cursorError" class="space-y-1">
+        <span class="inline-block rounded px-1.5 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+          {{ cursorError }}
+        </span>
+      </div>
+      <!-- Loading state -->
+      <div v-else-if="loading" class="space-y-1.5">
+        <div class="flex items-center gap-1">
+          <div class="h-3 w-[40px] animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
+          <div class="h-3 w-[60px] animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
+        </div>
+      </div>
+      <div v-else-if="error" class="text-xs text-red-500">
+        {{ error }}
+      </div>
+      <div v-else-if="cursorUsageData" class="space-y-1">
+        <!-- Plan badge + plan name -->
+        <div class="flex items-center gap-1">
+          <span
+            v-if="cursorMembershipType"
+            :class="[
+              'inline-block rounded px-1.5 py-0.5 text-[10px] font-medium',
+              cursorPlanClass
+            ]"
+          >
+            {{ cursorMembershipType }}
+          </span>
+          <span
+            v-if="cursorPlanName"
+            class="text-[10px] text-gray-500 dark:text-gray-400"
+          >
+            {{ cursorPlanName }}
+          </span>
+        </div>
+        <!-- Total usage bar -->
+        <UsageProgressBar
+          v-if="cursorPlanUsage"
+          label="Total"
+          :utilization="cursorPlanUsage.totalPct"
+          color="indigo"
+        />
+        <!-- Auto + Composer usage bar -->
+        <UsageProgressBar
+          v-if="cursorPlanUsage?.autoPct != null"
+          label="Auto"
+          :utilization="cursorPlanUsage.autoPct"
+          color="emerald"
+        />
+        <!-- API usage bar -->
+        <UsageProgressBar
+          v-if="cursorPlanUsage?.apiPct != null"
+          label="API"
+          :utilization="cursorPlanUsage.apiPct"
+          color="purple"
+        />
+        <!-- Plan limit -->
+        <div v-if="cursorUsageSummary" class="text-[10px] text-gray-500 dark:text-gray-400">
+          {{ cursorUsageSummary }}
+        </div>
+        <!-- Display message from Cursor -->
+        <div
+          v-if="cursorPlanUsage?.displayMessage"
+          class="text-[9px] text-gray-400 dark:text-gray-500 italic truncate max-w-[200px]"
+          :title="cursorPlanUsage.displayMessage"
+        >
+          {{ cursorPlanUsage.displayMessage }}
+        </div>
+      </div>
+      <div v-else class="text-xs text-gray-400">-</div>
+    </template>
+
     <!-- Other accounts: no usage window -->
     <template v-else>
       <div class="text-xs text-gray-400">-</div>
@@ -473,6 +553,8 @@ const usageInfo = ref<AccountUsageInfo | null>(null)
 const showUsageWindows = computed(() => {
   // Gemini: we can always compute local usage windows from DB logs (simulated quotas).
   if (props.account.platform === 'gemini') return true
+  // Cursor: always show usage window for cursor accounts
+  if (props.account.platform === 'cursor') return true
   return props.account.type === 'oauth' || props.account.type === 'setup-token'
 })
 
@@ -489,7 +571,70 @@ const shouldFetchUsage = computed(() => {
   if (props.account.platform === 'openai') {
     return props.account.type === 'oauth'
   }
+  if (props.account.platform === 'cursor') {
+    return true
+  }
   return false
+})
+
+// Cursor usage data
+const cursorUsageData = ref<any>(null)
+
+const cursorMembershipType = computed(() => {
+  const profile = cursorUsageData.value?.stripe_profile
+  if (!profile) return null
+  return profile.membershipType || profile.membership_type || 'Unknown'
+})
+
+const cursorPlanClass = computed(() => {
+  const type = cursorMembershipType.value?.toLowerCase() || ''
+  if (type.includes('pro') || type.includes('business')) {
+    return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+  }
+  if (type.includes('free') || type.includes('hobby')) {
+    return 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+  }
+  return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
+})
+
+const cursorPlanName = computed(() => {
+  const planInfo = cursorUsageData.value?.plan_info?.planInfo
+  return planInfo?.planName || null
+})
+
+const cursorPlanUsage = computed(() => {
+  const periodUsage = cursorUsageData.value?.current_period_usage
+  if (!periodUsage?.planUsage) return null
+  const pu = periodUsage.planUsage
+  const limit = (pu.limit || 0) / 100  // cents → dollars
+  const includedSpend = (pu.includedSpend || 0) / 100
+  // API returns percentages directly (e.g. 6.8 = 6.8%)
+  const totalPct = pu.totalPercentUsed ?? 0
+  const autoPct = pu.autoPercentUsed ?? null
+  const apiPct = pu.apiPercentUsed ?? null
+  return {
+    limit,
+    includedSpend,
+    totalPct,
+    autoPct,
+    apiPct,
+    displayMessage: periodUsage.displayMessage || null
+  }
+})
+
+const cursorUsageSummary = computed(() => {
+  const pu = cursorPlanUsage.value
+  if (!pu) return null
+  return `$${pu.includedSpend.toFixed(2)} / $${pu.limit.toFixed(2)}`
+})
+
+// Cursor needs reauth (401 / unauthenticated)
+const cursorNeedsReauth = computed(() => !!cursorUsageData.value?.needs_reauth)
+
+// Cursor degraded error (non-auth, from API response)
+const cursorError = computed(() => {
+  if (cursorNeedsReauth.value) return null // handled by needs_reauth badge
+  return cursorUsageData.value?.error || null
 })
 
 const geminiUsageAvailable = computed(() => {
@@ -932,7 +1077,13 @@ const loadUsage = async (source?: 'passive' | 'active') => {
   error.value = null
 
   try {
-    usageInfo.value = await adminAPI.accounts.getUsage(props.account.id, source)
+    const data: any = await adminAPI.accounts.getUsage(props.account.id, source)
+    // Cursor returns { platform: 'cursor', stripe_profile, usage } — store separately
+    if (data?.platform === 'cursor') {
+      cursorUsageData.value = data
+    } else {
+      usageInfo.value = data
+    }
   } catch (e: any) {
     error.value = t('common.error')
     console.error('Failed to load usage:', e)

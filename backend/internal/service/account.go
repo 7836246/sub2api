@@ -800,6 +800,26 @@ func (a *Account) IsOpenAIApiKey() bool {
 	return a.IsOpenAI() && a.Type == AccountTypeAPIKey
 }
 
+// IsCursorAutoFallback returns whether unmapped models should fall back to
+// Cursor's "default" model. Defaults to true (enabled) when the credential
+// key is absent, ensuring new accounts automatically benefit from fallback.
+func (a *Account) IsCursorAutoFallback() bool {
+	if a.Platform != PlatformCursor {
+		return false
+	}
+	if a.Credentials == nil {
+		return true // default enabled
+	}
+	v, ok := a.Credentials["cursor_auto_fallback"]
+	if !ok {
+		return true // default enabled
+	}
+	if enabled, ok := v.(bool); ok {
+		return enabled
+	}
+	return true
+}
+
 func (a *Account) GetOpenAIBaseURL() string {
 	if !a.IsOpenAI() {
 		return ""
@@ -884,10 +904,10 @@ func (a *Account) IsOpenAITokenExpired() bool {
 	return time.Now().Add(60 * time.Second).After(*expiresAt)
 }
 
-// IsMixedSchedulingEnabled 检查 antigravity 账户是否启用混合调度
-// 启用后可参与 anthropic/gemini 分组的账户调度
+// IsMixedSchedulingEnabled 检查账户是否启用混合调度
+// 启用后 Antigravity/Cursor 账户可参与 Anthropic 分组的账户调度
 func (a *Account) IsMixedSchedulingEnabled() bool {
-	if a.Platform != PlatformAntigravity {
+	if a.Platform != PlatformAntigravity && a.Platform != PlatformCursor {
 		return false
 	}
 	if a.Extra == nil {

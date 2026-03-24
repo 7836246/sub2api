@@ -169,6 +169,21 @@
             <Icon name="cloud" size="sm" />
             Antigravity
           </button>
+          <button
+            type="button"
+            @click="form.platform = 'cursor'"
+            :class="[
+              'flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-medium transition-all',
+              form.platform === 'cursor'
+                ? 'bg-white text-cyan-600 shadow-sm dark:bg-dark-600 dark:text-cyan-400'
+                : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
+            ]"
+          >
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3M5.25 20.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z" />
+            </svg>
+            Cursor
+          </button>
         </div>
       </div>
 
@@ -1722,6 +1737,101 @@
         </template>
       </div>
 
+      <!-- Cursor OAuth Model Mapping -->
+      <div
+        v-if="form.platform === 'cursor' && accountCategory === 'oauth-based'"
+        class="border-t border-gray-200 pt-4 dark:border-dark-600"
+      >
+        <label class="input-label">{{ t('admin.accounts.modelRestriction') }}</label>
+
+        <!-- Mode Toggle -->
+        <div class="mb-4 flex gap-2">
+          <button
+            type="button"
+            @click="modelRestrictionMode = 'whitelist'"
+            :class="[
+              'flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-all',
+              modelRestrictionMode === 'whitelist'
+                ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-dark-600 dark:text-gray-400 dark:hover:bg-dark-500'
+            ]"
+          >
+            {{ t('admin.accounts.modelWhitelist') }}
+          </button>
+          <button
+            type="button"
+            @click="modelRestrictionMode = 'mapping'"
+            :class="[
+              'flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-all',
+              modelRestrictionMode === 'mapping'
+                ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-dark-600 dark:text-gray-400 dark:hover:bg-dark-500'
+            ]"
+          >
+            {{ t('admin.accounts.modelMapping') }}
+          </button>
+        </div>
+
+        <!-- Whitelist Mode -->
+        <div v-if="modelRestrictionMode === 'whitelist'">
+          <ModelWhitelistSelector v-model="allowedModels" :platform="form.platform" />
+          <p class="text-xs text-gray-500 dark:text-gray-400">
+            {{ t('admin.accounts.selectedModels', { count: allowedModels.length }) }}
+            <span v-if="allowedModels.length === 0">{{ t('admin.accounts.supportsAllModels') }}</span>
+          </p>
+        </div>
+
+        <!-- Mapping Mode -->
+        <div v-else>
+          <div class="mb-3 rounded-lg bg-purple-50 p-3 dark:bg-purple-900/20">
+            <p class="text-xs text-purple-700 dark:text-purple-400">
+              {{ t('admin.accounts.mapRequestModels') }}
+            </p>
+          </div>
+
+          <div v-if="modelMappings.length > 0" class="mb-3 space-y-2">
+            <div
+              v-for="(mapping, index) in modelMappings"
+              :key="'cursor-' + getModelMappingKey(mapping)"
+              class="flex items-center gap-2"
+            >
+              <input
+                v-model="mapping.from"
+                type="text"
+                class="input flex-1"
+                :placeholder="t('admin.accounts.requestModel')"
+              />
+              <svg class="h-4 w-4 flex-shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+              </svg>
+              <input
+                v-model="mapping.to"
+                type="text"
+                class="input flex-1"
+                :placeholder="t('admin.accounts.actualModel')"
+              />
+              <button
+                type="button"
+                @click="removeModelMapping(index)"
+                class="rounded-lg p-2 text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
+              >
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            @click="addModelMapping"
+            class="mb-3 w-full rounded-lg border-2 border-dashed border-gray-300 px-4 py-2 text-gray-600 transition-colors hover:border-gray-400 hover:text-gray-700 dark:border-dark-500 dark:text-gray-400 dark:hover:border-dark-400 dark:hover:text-gray-300"
+          >
+            + {{ t('admin.accounts.addMapping') }}
+          </button>
+        </div>
+      </div>
+
       <!-- Temp Unschedulable Rules -->
       <div class="border-t border-gray-200 pt-4 dark:border-dark-600 space-y-4">
         <div class="mb-3 flex items-center justify-between">
@@ -1870,9 +1980,9 @@
         </div>
       </div>
 
-      <!-- Intercept Warmup Requests (Anthropic/Antigravity) -->
+      <!-- Intercept Warmup Requests (Anthropic/Antigravity/Cursor) -->
       <div
-        v-if="form.platform === 'anthropic' || form.platform === 'antigravity'"
+        v-if="form.platform === 'anthropic' || form.platform === 'antigravity' || form.platform === 'cursor'"
         class="border-t border-gray-200 pt-4 dark:border-dark-600"
       >
         <div class="flex items-center justify-between">
@@ -2420,8 +2530,8 @@
       </div>
 
       <div class="border-t border-gray-200 pt-4 dark:border-dark-600">
-        <!-- Mixed Scheduling (only for antigravity accounts) -->
-        <div v-if="form.platform === 'antigravity'" class="flex items-center gap-2">
+        <!-- Mixed Scheduling (for antigravity/cursor accounts) -->
+        <div v-if="form.platform === 'antigravity' || form.platform === 'cursor'" class="flex items-center gap-2">
           <label class="flex cursor-pointer items-center gap-2">
             <input
               type="checkbox"
@@ -2442,7 +2552,35 @@
             <div
               class="pointer-events-none absolute left-0 top-full z-[100] mt-1.5 w-72 rounded bg-gray-900 px-3 py-2 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 dark:bg-gray-700"
             >
-              {{ t('admin.accounts.mixedSchedulingTooltip') }}
+              {{ form.platform === 'cursor' ? t('admin.accounts.mixedSchedulingTooltipCursor') : t('admin.accounts.mixedSchedulingTooltip') }}
+              <div
+                class="absolute bottom-full left-3 border-4 border-transparent border-b-gray-900 dark:border-b-gray-700"
+              ></div>
+            </div>
+          </div>
+        </div>
+        <!-- Cursor Auto Fallback -->
+        <div v-if="form.platform === 'cursor'" class="mt-3 flex items-center gap-2">
+          <label class="flex cursor-pointer items-center gap-2">
+            <input
+              type="checkbox"
+              v-model="cursorAutoFallback"
+              class="h-4 w-4 rounded border-gray-300 text-primary-500 focus:ring-primary-500 dark:border-dark-500"
+            />
+            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+              {{ t('admin.accounts.cursorAutoFallback') }}
+            </span>
+          </label>
+          <div class="group relative">
+            <span
+              class="inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full bg-gray-200 text-xs text-gray-500 hover:bg-gray-300 dark:bg-dark-600 dark:text-gray-400 dark:hover:bg-dark-500"
+            >
+              ?
+            </span>
+            <div
+              class="pointer-events-none absolute left-0 top-full z-[100] mt-1.5 w-72 rounded bg-gray-900 px-3 py-2 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 dark:bg-gray-700"
+            >
+              {{ t('admin.accounts.cursorAutoFallbackHint') }}
               <div
                 class="absolute bottom-full left-3 border-4 border-transparent border-b-gray-900 dark:border-b-gray-700"
               ></div>
@@ -2503,7 +2641,7 @@
         :show-proxy-warning="form.platform !== 'openai' && form.platform !== 'sora' && !!form.proxy_id"
         :allow-multiple="form.platform === 'anthropic'"
         :show-cookie-option="form.platform === 'anthropic'"
-        :show-refresh-token-option="form.platform === 'openai' || form.platform === 'sora' || form.platform === 'antigravity'"
+        :show-refresh-token-option="form.platform === 'openai' || form.platform === 'sora' || form.platform === 'antigravity' || form.platform === 'cursor'"
         :show-session-token-option="form.platform === 'sora'"
         :show-access-token-option="form.platform === 'sora'"
         :platform="form.platform"
@@ -2852,6 +2990,7 @@ import {
 import { useOpenAIOAuth } from '@/composables/useOpenAIOAuth'
 import { useGeminiOAuth } from '@/composables/useGeminiOAuth'
 import { useAntigravityOAuth } from '@/composables/useAntigravityOAuth'
+import { useCursorOAuth } from '@/composables/useCursorOAuth'
 import type {
   Proxy,
   AdminGroup,
@@ -2868,7 +3007,7 @@ import ProxySelector from '@/components/common/ProxySelector.vue'
 import GroupSelector from '@/components/common/GroupSelector.vue'
 import ModelWhitelistSelector from '@/components/account/ModelWhitelistSelector.vue'
 import QuotaLimitCard from '@/components/account/QuotaLimitCard.vue'
-import { applyInterceptWarmup } from '@/components/account/credentialsBuilder'
+import { applyInterceptWarmup, applyCursorAutoFallback } from '@/components/account/credentialsBuilder'
 import { formatDateTimeLocalInput, parseDateTimeLocalInput } from '@/utils/format'
 import { createStableObjectKeyResolver } from '@/utils/stableObjectKey'
 import {
@@ -2901,6 +3040,7 @@ const oauthStepTitle = computed(() => {
   if (form.platform === 'openai' || form.platform === 'sora') return t('admin.accounts.oauth.openai.title')
   if (form.platform === 'gemini') return t('admin.accounts.oauth.gemini.title')
   if (form.platform === 'antigravity') return t('admin.accounts.oauth.antigravity.title')
+  if (form.platform === 'cursor') return t('admin.accounts.oauth.cursor.title')
   return t('admin.accounts.oauth.title')
 })
 
@@ -2937,6 +3077,7 @@ const openaiOAuth = useOpenAIOAuth({ platform: 'openai' }) // For OpenAI OAuth
 const soraOAuth = useOpenAIOAuth({ platform: 'sora' }) // For Sora OAuth
 const geminiOAuth = useGeminiOAuth() // For Gemini OAuth
 const antigravityOAuth = useAntigravityOAuth() // For Antigravity OAuth
+const cursorOAuth = useCursorOAuth() // For Cursor OAuth
 const activeOpenAIOAuth = computed(() => (form.platform === 'sora' ? soraOAuth : openaiOAuth))
 
 // Computed: current OAuth state for template binding
@@ -2944,6 +3085,7 @@ const currentAuthUrl = computed(() => {
   if (form.platform === 'openai' || form.platform === 'sora') return activeOpenAIOAuth.value.authUrl.value
   if (form.platform === 'gemini') return geminiOAuth.authUrl.value
   if (form.platform === 'antigravity') return antigravityOAuth.authUrl.value
+  if (form.platform === 'cursor') return cursorOAuth.loginUrl.value
   return oauth.authUrl.value
 })
 
@@ -2951,6 +3093,7 @@ const currentSessionId = computed(() => {
   if (form.platform === 'openai' || form.platform === 'sora') return activeOpenAIOAuth.value.sessionId.value
   if (form.platform === 'gemini') return geminiOAuth.sessionId.value
   if (form.platform === 'antigravity') return antigravityOAuth.sessionId.value
+  if (form.platform === 'cursor') return cursorOAuth.sessionId.value
   return oauth.sessionId.value
 })
 
@@ -2958,6 +3101,7 @@ const currentOAuthLoading = computed(() => {
   if (form.platform === 'openai' || form.platform === 'sora') return activeOpenAIOAuth.value.loading.value
   if (form.platform === 'gemini') return geminiOAuth.loading.value
   if (form.platform === 'antigravity') return antigravityOAuth.loading.value
+  if (form.platform === 'cursor') return cursorOAuth.loading.value
   return oauth.loading.value
 })
 
@@ -2965,6 +3109,7 @@ const currentOAuthError = computed(() => {
   if (form.platform === 'openai' || form.platform === 'sora') return activeOpenAIOAuth.value.error.value
   if (form.platform === 'gemini') return geminiOAuth.error.value
   if (form.platform === 'antigravity') return antigravityOAuth.error.value
+  if (form.platform === 'cursor') return cursorOAuth.error.value
   return oauth.error.value
 })
 
@@ -3019,6 +3164,7 @@ const codexCLIOnlyEnabled = ref(false)
 const anthropicPassthroughEnabled = ref(false)
 const mixedScheduling = ref(false) // For antigravity accounts: enable mixed scheduling
 const allowOverages = ref(false) // For antigravity accounts: enable AI Credits overages
+const cursorAutoFallback = ref(true) // For cursor accounts: fallback unmapped models to 'default'
 const antigravityAccountType = ref<'oauth' | 'upstream'>('oauth') // For antigravity: oauth or upstream
 const soraAccountType = ref<'oauth' | 'apikey'>('oauth') // For sora: oauth or apikey (upstream)
 const upstreamBaseUrl = ref('') // For upstream type: base URL
@@ -3049,6 +3195,12 @@ function buildAntigravityExtra(): Record<string, unknown> | undefined {
   const extra: Record<string, unknown> = {}
   if (mixedScheduling.value) extra.mixed_scheduling = true
   if (allowOverages.value) extra.allow_overages = true
+  return Object.keys(extra).length > 0 ? extra : undefined
+}
+
+function buildCursorExtra(): Record<string, unknown> | undefined {
+  const extra: Record<string, unknown> = {}
+  if (mixedScheduling.value) extra.mixed_scheduling = true
   return Object.keys(extra).length > 0 ? extra : undefined
 }
 
@@ -3330,8 +3482,8 @@ watch(
     bedrockForceGlobal.value = false
     bedrockAuthMode.value = 'sigv4'
     bedrockApiKeyValue.value = ''
-    // Reset Anthropic/Antigravity-specific settings when switching to other platforms
-    if (newPlatform !== 'anthropic' && newPlatform !== 'antigravity') {
+    // Reset Anthropic/Antigravity/Cursor-specific settings when switching to other platforms
+    if (newPlatform !== 'anthropic' && newPlatform !== 'antigravity' && newPlatform !== 'cursor') {
       interceptWarmupRequests.value = false
     }
     if (newPlatform === 'sora') {
@@ -3340,6 +3492,12 @@ watch(
       addMethod.value = 'oauth'
       form.type = 'oauth'
       soraAccountType.value = 'oauth'
+    }
+    if (newPlatform === 'cursor') {
+      // Cursor: default to OAuth-based flow
+      accountCategory.value = 'oauth-based'
+      addMethod.value = 'oauth'
+      form.type = 'oauth'
     }
     if (newPlatform !== 'openai') {
       openaiPassthroughEnabled.value = false
@@ -3356,6 +3514,7 @@ watch(
     soraOAuth.resetState()
     geminiOAuth.resetState()
     antigravityOAuth.resetState()
+    cursorOAuth.resetState()
   }
 )
 
@@ -3749,6 +3908,7 @@ const resetForm = () => {
   cacheTTLOverrideEnabled.value = false
   cacheTTLOverrideTarget.value = '5m'
   allowOverages.value = false
+  cursorAutoFallback.value = true
   antigravityAccountType.value = 'oauth'
   upstreamBaseUrl.value = ''
   upstreamApiKey.value = ''
@@ -4096,6 +4256,26 @@ const handleGenerateUrl = async () => {
     )
   } else if (form.platform === 'antigravity') {
     await antigravityOAuth.generateAuthUrl(form.proxy_id)
+  } else if (form.platform === 'cursor') {
+    const ok = await cursorOAuth.generateLoginURL(form.proxy_id)
+    if (ok) {
+      // Auto-start polling in background — when user logs in via browser,
+      // polling will detect success and auto-create the account.
+      cursorOAuth.startPolling().then(async (tokenInfo) => {
+        if (tokenInfo) {
+          try {
+            const credentials = cursorOAuth.buildCredentials(tokenInfo)
+            applyInterceptWarmup(credentials, interceptWarmupRequests.value, 'create')
+            applyCursorAutoFallback(credentials, cursorAutoFallback.value, 'create')
+            const extra = buildCursorExtra()
+            await createAccountAndFinish('cursor', 'oauth', credentials, extra)
+          } catch (err: any) {
+            cursorOAuth.error.value = err.response?.data?.detail || t('admin.accounts.oauth.authFailed')
+            appStore.showError(cursorOAuth.error.value)
+          }
+        }
+      })
+    }
   } else {
     await oauth.generateAuthUrl(addMethod.value, form.proxy_id)
   }
@@ -4106,6 +4286,8 @@ const handleValidateRefreshToken = (rt: string) => {
     handleOpenAIValidateRT(rt)
   } else if (form.platform === 'antigravity') {
     handleAntigravityValidateRT(rt)
+  } else if (form.platform === 'cursor') {
+    handleCursorValidateRT(rt)
   }
 }
 
@@ -4671,6 +4853,94 @@ const handleAntigravityValidateRT = async (refreshTokenInput: string) => {
   }
 }
 
+// Cursor Refresh Token 验证 & 创建账号
+const handleCursorValidateRT = async (refreshTokenInput: string) => {
+  if (!refreshTokenInput.trim()) return
+
+  // Parse multiple refresh tokens (one per line)
+  const refreshTokens = refreshTokenInput
+    .split('\n')
+    .map((rt) => rt.trim())
+    .filter((rt) => rt)
+
+  if (refreshTokens.length === 0) {
+    cursorOAuth.error.value = t('admin.accounts.oauth.cursor.pleaseEnterToken')
+    return
+  }
+
+  cursorOAuth.loading.value = true
+  cursorOAuth.error.value = ''
+
+  let successCount = 0
+  let failedCount = 0
+  const errors: string[] = []
+
+  try {
+    for (let i = 0; i < refreshTokens.length; i++) {
+      try {
+        const tokenInfo = await cursorOAuth.validateRefreshToken(refreshTokens[i])
+        if (!tokenInfo) {
+          failedCount++
+          errors.push(`#${i + 1}: ${cursorOAuth.error.value || 'Validation failed'}`)
+          cursorOAuth.error.value = ''
+          continue
+        }
+
+        const credentials = cursorOAuth.buildCredentials(tokenInfo)
+        applyInterceptWarmup(credentials, interceptWarmupRequests.value, 'create')
+        applyCursorAutoFallback(credentials, cursorAutoFallback.value, 'create')
+        const extra = buildCursorExtra()
+
+        // Generate account name with index for batch
+        const accountName = refreshTokens.length > 1 ? `${form.name} #${i + 1}` : form.name
+
+        await adminAPI.accounts.create({
+          name: accountName,
+          notes: form.notes,
+          platform: 'cursor',
+          type: 'oauth',
+          credentials,
+          extra: extra || {},
+          proxy_id: form.proxy_id,
+          concurrency: form.concurrency,
+          load_factor: form.load_factor ?? undefined,
+          priority: form.priority,
+          rate_multiplier: form.rate_multiplier,
+          group_ids: form.group_ids,
+          expires_at: form.expires_at,
+          auto_pause_on_expired: autoPauseOnExpired.value
+        } as any)
+        successCount++
+      } catch (error: any) {
+        failedCount++
+        const errMsg = error.response?.data?.detail || error.message || 'Unknown error'
+        errors.push(`#${i + 1}: ${errMsg}`)
+      }
+    }
+
+    // Show results
+    if (successCount > 0 && failedCount === 0) {
+      appStore.showSuccess(
+        refreshTokens.length > 1
+          ? t('admin.accounts.oauth.batchSuccess', { count: successCount })
+          : t('admin.accounts.accountCreated')
+      )
+      emit('created')
+      handleClose()
+    } else if (successCount > 0 && failedCount > 0) {
+      appStore.showWarning(
+        t('admin.accounts.oauth.batchPartialSuccess', { success: successCount, failed: failedCount })
+      )
+      emit('created')
+    } else {
+      cursorOAuth.error.value = errors.join('\n')
+      appStore.showError(t('admin.accounts.oauth.batchFailed'))
+    }
+  } finally {
+    cursorOAuth.loading.value = false
+  }
+}
+
 // Gemini OAuth 授权码兑换
 const handleGeminiExchange = async (authCode: string) => {
   if (!authCode.trim() || !geminiOAuth.sessionId.value) return
@@ -4833,6 +5103,37 @@ const handleAnthropicExchange = async (authCode: string) => {
   }
 }
 
+// Cursor OAuth: polling or manual token
+const handleCursorExchange = async (authCode: string) => {
+  cursorOAuth.loading.value = true
+  cursorOAuth.error.value = ''
+
+  try {
+    let tokenInfo = null
+
+    if (authCode.trim()) {
+      // User pasted an Access Token manually
+      tokenInfo = await cursorOAuth.validateToken(authCode.trim())
+    } else {
+      // Auto-poll for PKCE completion
+      tokenInfo = await cursorOAuth.startPolling()
+    }
+
+    if (!tokenInfo) return
+
+    const credentials = cursorOAuth.buildCredentials(tokenInfo)
+    applyInterceptWarmup(credentials, interceptWarmupRequests.value, 'create')
+    applyCursorAutoFallback(credentials, cursorAutoFallback.value, 'create')
+    const extra = buildCursorExtra()
+    await createAccountAndFinish('cursor', 'oauth', credentials, extra)
+  } catch (error: any) {
+    cursorOAuth.error.value = error.response?.data?.detail || t('admin.accounts.oauth.authFailed')
+    appStore.showError(cursorOAuth.error.value)
+  } finally {
+    cursorOAuth.loading.value = false
+  }
+}
+
 // 主入口：根据平台路由到对应处理函数
 const handleExchangeCode = async () => {
   const authCode = oauthFlowRef.value?.authCode || ''
@@ -4845,6 +5146,8 @@ const handleExchangeCode = async () => {
       return handleGeminiExchange(authCode)
     case 'antigravity':
       return handleAntigravityExchange(authCode)
+    case 'cursor':
+      return handleCursorExchange(authCode)
     default:
       return handleAnthropicExchange(authCode)
   }

@@ -1007,6 +1007,8 @@ func guessPlatformFromPath(path string) string {
 		return service.PlatformAntigravity
 	case strings.HasPrefix(p, "/v1beta/"):
 		return service.PlatformGemini
+	case strings.HasPrefix(p, "/cursor/"):
+		return service.PlatformCursor
 	case strings.Contains(p, "/responses"):
 		return service.PlatformOpenAI
 	default:

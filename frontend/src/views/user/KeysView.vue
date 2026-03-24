@@ -1674,7 +1674,11 @@ const importToCcswitch = (row: ApiKey) => {
   }
 
   // For other platforms, execute directly
-  executeCcsImport(row, platform === 'gemini' ? 'gemini' : 'claude')
+  if (platform === 'cursor') {
+    executeCcsImport(row, 'claude')
+  } else {
+    executeCcsImport(row, platform === 'gemini' ? 'gemini' : 'claude')
+  }
 }
 
 const executeCcsImport = (row: ApiKey, clientType: 'claude' | 'gemini') => {
@@ -1686,9 +1690,11 @@ const executeCcsImport = (row: ApiKey, clientType: 'claude' | 'gemini') => {
   let endpoint: string
 
   if (platform === 'antigravity') {
-    // Antigravity always uses /antigravity suffix
     app = clientType === 'gemini' ? 'gemini' : 'claude'
     endpoint = `${baseUrl}/antigravity`
+  } else if (platform === 'cursor') {
+    app = 'claude'
+    endpoint = `${baseUrl}/cursor`
   } else {
     switch (platform) {
       case 'openai':

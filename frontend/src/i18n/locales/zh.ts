@@ -97,6 +97,7 @@ export default {
       claude: 'Claude',
       gemini: 'Gemini',
       antigravity: 'Antigravity',
+      cursor: 'Cursor',
       more: '更多'
     },
     // CTA 区块
@@ -628,6 +629,10 @@ export default {
         title: 'OpenCode 配置示例',
         subtitle: 'opencode.json',
         hint: '配置文件路径：~/.config/opencode/opencode.json（或 opencode.jsonc），不存在需手动创建。可使用默认 provider（openai/anthropic/google）或自定义 provider_id。API Key 支持直接配置或通过客户端 /connect 命令配置。示例仅供参考，模型与选项可按需调整。'
+      },
+      cursor: {
+        description: '为 Cursor 分组配置 API 访问。Cursor 使用 Anthropic 兼容格式，支持 Claude Code 和 OpenCode 等客户端。',
+        note: 'Cursor 账号通过 Cursor 网关路由，用于访问模型。环境变量配置方式与 Claude Code 相同。'
       }
     },
     customKeyLabel: '自定义密钥',
@@ -1647,7 +1652,8 @@ export default {
         openai: 'OpenAI',
         gemini: 'Gemini',
         antigravity: 'Antigravity',
-        sora: 'Sora'
+        sora: 'Sora',
+        cursor: 'Cursor'
       },
       saving: '保存中...',
       noGroups: '暂无分组',
@@ -2098,7 +2104,8 @@ export default {
         anthropic: 'Anthropic',
         gemini: 'Gemini',
         antigravity: 'Antigravity',
-        sora: 'Sora'
+        sora: 'Sora',
+        cursor: 'Cursor'
       },
       types: {
         oauth: 'OAuth',
@@ -2490,6 +2497,10 @@ export default {
       mixedSchedulingHint: '启用后可参与 Anthropic/Gemini 分组的调度',
       mixedSchedulingTooltip:
         '！！注意！！ Antigravity Claude 和 Anthropic Claude 无法在同个上下文中使用，如果你同时有 Anthropic 账号和 Antigravity 账号，开启此选项会导致经常 400 报错。开启后，请用分组功能做好 Antigravity 账号和 Anthropic 账号的隔离。一定要弄明白再开启！！',
+      mixedSchedulingTooltipCursor:
+        '启用后，Cursor 账号可参与 Anthropic 分组的 /v1/messages 调度。Cursor 使用独立协议，请求会自动转换为 Cursor 格式发送。注意：Cursor 的模型 ID 与 Anthropic 不同，建议配置模型映射确保正确路由。',
+      cursorAutoFallback: '未映射模型自动兜底',
+      cursorAutoFallbackHint: '开启后（默认开启），Cursor 映射表中找不到的模型名（如 claude-haiku-4-5）会自动兜底为 Cursor 的 default 模型，避免 not_found 错误。关闭则原样将模型名传给 Cursor。',
       aiCreditsBalance: 'AI Credits',
       allowOverages: '允许超量请求 (AI Credits)',
       allowOveragesTooltip:
@@ -2695,9 +2706,39 @@ export default {
           validateAndCreate: '验证并创建账号',
           pleaseEnterRefreshToken: '请输入 Refresh Token',
           failedToValidateRT: '验证 Refresh Token 失败'
+        },
+        // Cursor specific
+        cursor: {
+          title: 'Cursor 账户授权',
+          followSteps: '请按照以下步骤完成 Cursor 账户的授权：',
+          step1GenerateUrl: '生成登录链接',
+          generateAuthUrl: '生成登录链接',
+          step2OpenUrl: '在浏览器中打开链接并完成登录',
+          openUrlDesc: '请在新标签页中打开登录链接，使用您的 Cursor 账户（Email/GitHub/Google）登录。',
+          importantNotice:
+            '重要提示：登录成功后系统会自动轮询检测授权状态，无需手动操作。点击「完成授权」后请耐心等待。',
+          step3EnterCode: '等待授权完成',
+          authCodeDesc:
+            '在浏览器中完成登录后，系统将自动检测授权状态。您也可以手动粘贴 Access Token：',
+          authCode: 'Access Token（可选）',
+          authCodePlaceholder:
+            '系统会自动检测登录状态\n如果自动检测失败，可以手动粘贴 Access Token',
+          authCodeHint: '通常无需手动输入，系统会通过轮询自动获取授权凭证',
+          failedToGenerateUrl: '生成 Cursor 登录链接失败',
+          pollTimeout: 'Cursor 登录超时，请重试',
+          pollFailed: 'Cursor 登录失败',
+          pleaseEnterToken: '请输入 Token',
+          failedToValidateToken: '验证 Cursor Token 失败',
+          // Refresh Token auth
+          refreshTokenAuth: '手动输入 RT',
+          refreshTokenDesc: '输入您已有的 Cursor Refresh Token，支持批量输入（每行一个），系统将自动验证并创建账号。',
+          refreshTokenPlaceholder: '粘贴您的 Cursor Refresh Token...\n支持多个，每行一个',
+          validating: '验证中...',
+          validateAndCreate: '验证并创建账号',
+          pleaseEnterRefreshToken: '请输入 Refresh Token',
+          failedToValidateRT: '验证 Refresh Token 失败'
         }
       },
-      // Gemini specific (platform-wide)
       gemini: {
         helpButton: '使用帮助',
         helpDialog: {
@@ -2839,6 +2880,7 @@ export default {
       soraAccount: 'Sora 账号',
       geminiAccount: 'Gemini 账号',
       antigravityAccount: 'Antigravity 账号',
+      cursorAccount: 'Cursor 账号',
       inputMethod: '输入方式',
       reAuthorizedSuccess: '账号重新授权成功',
       // Test Modal

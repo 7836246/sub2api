@@ -185,6 +185,8 @@ const defaultClientTab = computed(() => {
       return 'gemini'
     case 'antigravity':
       return 'claude'
+    case 'cursor':
+      return 'claude'
     default:
       return 'claude'
   }
@@ -288,6 +290,11 @@ const clientTabs = computed((): TabConfig[] => {
         { id: 'gemini', label: t('keys.useKeyModal.cliTabs.geminiCli'), icon: SparkleIcon },
         { id: 'opencode', label: t('keys.useKeyModal.cliTabs.opencode'), icon: TerminalIcon }
       ]
+    case 'cursor':
+      return [
+        { id: 'claude', label: t('keys.useKeyModal.cliTabs.claudeCode'), icon: TerminalIcon },
+        { id: 'opencode', label: t('keys.useKeyModal.cliTabs.opencode'), icon: TerminalIcon }
+      ]
     default:
       return [
         { id: 'claude', label: t('keys.useKeyModal.cliTabs.claudeCode'), icon: TerminalIcon },
@@ -330,6 +337,8 @@ const platformDescription = computed(() => {
       return t('keys.useKeyModal.gemini.description')
     case 'antigravity':
       return t('keys.useKeyModal.antigravity.description')
+    case 'cursor':
+      return t('keys.useKeyModal.cursor.description', 'Configure your client to use the Cursor gateway. This supports Claude Code and OpenCode.')
     default:
       return t('keys.useKeyModal.description')
   }
@@ -350,6 +359,8 @@ const platformNote = computed(() => {
       return activeClientTab.value === 'claude'
         ? t('keys.useKeyModal.antigravity.claudeNote')
         : t('keys.useKeyModal.antigravity.geminiNote')
+    case 'cursor':
+      return t('keys.useKeyModal.cursor.note', 'Cursor accounts are routed through the Cursor gateway for model access.')
     default:
       return t('keys.useKeyModal.note')
   }
@@ -407,6 +418,10 @@ const currentFiles = computed((): FileConfig[] => {
           generateOpenCodeConfig('antigravity-claude', antigravityBase, apiKey, 'opencode.json (Claude)'),
           generateOpenCodeConfig('antigravity-gemini', antigravityGeminiBase, apiKey, 'opencode.json (Gemini)')
         ]
+      case 'cursor': {
+        const cursorBase = ensureV1(`${baseRoot}/cursor`)
+        return [generateOpenCodeConfig('cursor', cursorBase, apiKey)]
+      }
       default:
         return [generateOpenCodeConfig('openai', apiBase, apiKey)]
     }
@@ -428,6 +443,8 @@ const currentFiles = computed((): FileConfig[] => {
         return [generateGeminiCliContent(`${baseUrl}/antigravity`, apiKey)]
       }
       return generateAnthropicFiles(`${baseUrl}/antigravity`, apiKey)
+    case 'cursor':
+      return generateAnthropicFiles(`${baseUrl}/cursor`, apiKey)
     default:
       return generateAnthropicFiles(baseUrl, apiKey)
   }
@@ -1082,6 +1099,10 @@ function generateOpenCodeConfig(platform: string, baseUrl: string, apiKey: strin
     provider[platform].models = antigravityGeminiModels
   } else if (platform === 'openai') {
     provider[platform].models = openaiModels
+  } else if (platform === 'cursor') {
+    provider[platform].npm = '@ai-sdk/anthropic'
+    provider[platform].name = 'Cursor'
+    provider[platform].models = claudeModels
   }
 
   const agent =

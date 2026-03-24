@@ -794,7 +794,7 @@
 
         <!-- 无效请求兜底（仅 anthropic/antigravity 平台，且非订阅分组） -->
         <div
-          v-if="['anthropic', 'antigravity'].includes(createForm.platform) && createForm.subscription_type !== 'subscription'"
+          v-if="['anthropic', 'antigravity', 'cursor'].includes(createForm.platform) && createForm.subscription_type !== 'subscription'"
           class="border-t pt-4"
         >
           <label class="input-label">{{ t('admin.groups.invalidRequestFallback.title') }}</label>
@@ -1529,7 +1529,7 @@
 
         <!-- 无效请求兜底（仅 anthropic/antigravity 平台，且非订阅分组） -->
         <div
-          v-if="['anthropic', 'antigravity'].includes(editForm.platform) && editForm.subscription_type !== 'subscription'"
+          v-if="['anthropic', 'antigravity', 'cursor'].includes(editForm.platform) && editForm.subscription_type !== 'subscription'"
           class="border-t pt-4"
         >
           <label class="input-label">{{ t('admin.groups.invalidRequestFallback.title') }}</label>
@@ -1892,7 +1892,8 @@ const platformOptions = computed(() => [
   { value: 'openai', label: 'OpenAI' },
   { value: 'gemini', label: 'Gemini' },
   { value: 'antigravity', label: 'Antigravity' },
-  { value: 'sora', label: 'Sora' }
+  { value: 'sora', label: 'Sora' },
+  { value: 'cursor', label: 'Cursor' }
 ])
 
 const platformFilterOptions = computed(() => [
@@ -1901,7 +1902,8 @@ const platformFilterOptions = computed(() => [
   { value: 'openai', label: 'OpenAI' },
   { value: 'gemini', label: 'Gemini' },
   { value: 'antigravity', label: 'Antigravity' },
-  { value: 'sora', label: 'Sora' }
+  { value: 'sora', label: 'Sora' },
+  { value: 'cursor', label: 'Cursor' }
 ])
 
 const editStatusOptions = computed(() => [
@@ -2640,7 +2642,7 @@ watch(
 watch(
   () => createForm.platform,
   (newVal) => {
-    if (!['anthropic', 'antigravity'].includes(newVal)) {
+    if (!['anthropic', 'antigravity', 'cursor'].includes(newVal)) {
       createForm.fallback_group_id_on_invalid_request = null
     }
     if (newVal !== 'openai') {

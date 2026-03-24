@@ -1293,6 +1293,26 @@ func (s *CRSSyncService) refreshOAuthToken(ctx context.Context, account *Account
 				}
 			}
 		}
+	case PlatformCursor:
+		refreshToken := account.GetCredential("refresh_token")
+		if refreshToken == "" {
+			return nil
+		}
+		client := NewCursorSDKClient()
+		newAccessToken, newRefreshToken, refreshErr := client.RefreshToken(ctx, refreshToken)
+		if refreshErr != nil {
+			err = refreshErr
+		} else {
+			newCredentials = make(map[string]any)
+			for k, v := range account.Credentials {
+				newCredentials[k] = v
+			}
+			newCredentials["access_token"] = newAccessToken
+			if newRefreshToken != "" {
+				newCredentials["refresh_token"] = newRefreshToken
+			}
+			newCredentials["last_refresh_at"] = time.Now().Format(time.RFC3339)
+		}
 	default:
 		return nil
 	}

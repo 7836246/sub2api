@@ -13,3 +13,9 @@ func OpenAITokenCacheKey(account *Account) string {
 func ClaudeTokenCacheKey(account *Account) string {
 	return "claude:account:" + strconv.FormatInt(account.ID, 10)
 }
+
+// CursorTokenCacheKey 生成 Cursor OAuth 账号的缓存键
+// 格式: "cursor:account:{account_id}"
+func CursorTokenCacheKey(account *Account) string {
+	return "cursor:account:" + strconv.FormatInt(account.ID, 10)
+}

@@ -43,6 +43,9 @@ func RegisterAdminRoutes(
 		// Antigravity OAuth
 		registerAntigravityOAuthRoutes(admin, h)
 
+		// Cursor OAuth
+		registerCursorOAuthRoutes(admin, h)
+
 		// 代理管理
 		registerProxyRoutes(admin, h)
 
@@ -342,6 +345,16 @@ func registerAntigravityOAuthRoutes(admin *gin.RouterGroup, h *handler.Handlers)
 		antigravity.POST("/oauth/auth-url", h.Admin.AntigravityOAuth.GenerateAuthURL)
 		antigravity.POST("/oauth/exchange-code", h.Admin.AntigravityOAuth.ExchangeCode)
 		antigravity.POST("/oauth/refresh-token", h.Admin.AntigravityOAuth.RefreshToken)
+	}
+}
+
+func registerCursorOAuthRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	cursor := admin.Group("/cursor")
+	{
+		cursor.POST("/oauth/login-url", h.Admin.CursorOAuth.GenerateLoginURL)
+		cursor.POST("/oauth/poll", h.Admin.CursorOAuth.PollForToken)
+		cursor.POST("/oauth/validate-token", h.Admin.CursorOAuth.ValidateToken)
+		cursor.POST("/oauth/validate-refresh-token", h.Admin.CursorOAuth.ValidateRefreshToken)
 	}
 }
 

@@ -587,6 +587,11 @@ func (s *OpsService) executeWithAccount(ctx context.Context, reqType opsRetryReq
 				return &opsRetryExecution{status: opsRetryStatusFailed, errorMessage: "antigravity gateway service not available"}
 			}
 			_, err = s.antigravityGatewayService.Forward(ctx, c, account, body, false)
+		case PlatformCursor:
+			if s.cursorGatewayService == nil {
+				return &opsRetryExecution{status: opsRetryStatusFailed, errorMessage: "cursor gateway service not available"}
+			}
+			_, err = s.cursorGatewayService.ForwardFromMessages(ctx, c, account, body)
 		case PlatformGemini:
 			if s.geminiCompatService == nil {
 				return &opsRetryExecution{status: opsRetryStatusFailed, errorMessage: "gemini gateway service not available"}

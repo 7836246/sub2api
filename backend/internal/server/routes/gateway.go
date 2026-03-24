@@ -67,14 +67,26 @@ func RegisterGatewayRoutes(
 			}
 			h.Gateway.CountTokens(c)
 		})
-		gateway.GET("/models", h.Gateway.Models)
+		gateway.GET("/models", func(c *gin.Context) {
+			if getGroupPlatform(c) == service.PlatformCursor {
+				h.CursorGateway.Models(c)
+				return
+			}
+			h.Gateway.Models(c)
+		})
 		gateway.GET("/usage", h.Gateway.Usage)
 		// OpenAI Responses API
 		gateway.POST("/responses", h.OpenAIGateway.Responses)
 		gateway.POST("/responses/*subpath", h.OpenAIGateway.Responses)
 		gateway.GET("/responses", h.OpenAIGateway.ResponsesWebSocket)
-		// OpenAI Chat Completions API
-		gateway.POST("/chat/completions", h.OpenAIGateway.ChatCompletions)
+		// Chat Completions API: auto-route based on group platform
+		gateway.POST("/chat/completions", func(c *gin.Context) {
+			if getGroupPlatform(c) == service.PlatformCursor {
+				h.CursorGateway.ChatCompletions(c)
+				return
+			}
+			h.OpenAIGateway.ChatCompletions(c)
+		})
 	}
 
 	// Gemini 原生 API 兼容层（Gemini SDK/CLI 直连）
@@ -96,8 +108,14 @@ func RegisterGatewayRoutes(
 	r.POST("/responses", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, h.OpenAIGateway.Responses)
 	r.POST("/responses/*subpath", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, h.OpenAIGateway.Responses)
 	r.GET("/responses", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, h.OpenAIGateway.ResponsesWebSocket)
-	// OpenAI Chat Completions API（不带v1前缀的别名）
-	r.POST("/chat/completions", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, h.OpenAIGateway.ChatCompletions)
+	// Chat Completions API（不带v1前缀的别名）— auto-route Cursor groups
+	r.POST("/chat/completions", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
+		if getGroupPlatform(c) == service.PlatformCursor {
+			h.CursorGateway.ChatCompletions(c)
+			return
+		}
+		h.OpenAIGateway.ChatCompletions(c)
+	})
 
 	// Antigravity 模型列表
 	r.GET("/antigravity/models", gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, h.Gateway.AntigravityModels)
@@ -154,6 +172,20 @@ func RegisterGatewayRoutes(
 	}
 	// Sora 媒体代理（签名 URL，无需 API Key）
 	r.GET("/sora/media-signed/*filepath", h.SoraGateway.MediaProxySigned)
+
+	// Cursor 专用路由（强制使用 cursor 平台）
+	cursorV1 := r.Group("/cursor/v1")
+	cursorV1.Use(bodyLimit)
+	cursorV1.Use(clientRequestID)
+	cursorV1.Use(opsErrorLogger)
+	cursorV1.Use(endpointNorm)
+	cursorV1.Use(middleware.ForcePlatform(service.PlatformCursor))
+	cursorV1.Use(gin.HandlerFunc(apiKeyAuth))
+	cursorV1.Use(requireGroupAnthropic)
+	{
+		cursorV1.POST("/chat/completions", h.CursorGateway.ChatCompletions)
+		cursorV1.GET("/models", h.CursorGateway.Models)
+	}
 }
 
 // getGroupPlatform extracts the group platform from the API Key stored in context.

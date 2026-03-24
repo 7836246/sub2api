@@ -97,6 +97,7 @@ export default {
       claude: 'Claude',
       gemini: 'Gemini',
       antigravity: 'Antigravity',
+      cursor: 'Cursor',
       more: 'More'
     },
     // CTA section
@@ -624,6 +625,10 @@ export default {
         title: 'OpenCode Example',
         subtitle: 'opencode.json',
         hint: 'Config path: ~/.config/opencode/opencode.json (or opencode.jsonc), create if not exists. Use default providers (openai/anthropic/google) or custom provider_id. API Key can be configured directly or via /connect command. This is an example, adjust models and options as needed.',
+      },
+      cursor: {
+        description: 'Configure API access for Cursor groups. Cursor uses Anthropic-compatible format and supports Claude Code and OpenCode clients.',
+        note: 'Cursor accounts are routed through the Cursor gateway for model access. Environment variable configuration is the same as Claude Code.'
       },
     },
     customKeyLabel: 'Custom Key',
@@ -1610,7 +1615,8 @@ export default {
         openai: 'OpenAI',
         gemini: 'Gemini',
         antigravity: 'Antigravity',
-        sora: 'Sora'
+        sora: 'Sora',
+        cursor: 'Cursor'
       },
       deleteConfirm:
         "Are you sure you want to delete '{name}'? All associated API keys will no longer belong to any group.",
@@ -1923,7 +1929,8 @@ export default {
         openai: 'OpenAI',
         gemini: 'Gemini',
         antigravity: 'Antigravity',
-        sora: 'Sora'
+        sora: 'Sora',
+        cursor: 'Cursor'
       },
       types: {
         oauth: 'OAuth',
@@ -2346,6 +2353,10 @@ export default {
       mixedSchedulingHint: 'Enable to participate in Anthropic/Gemini group scheduling',
       mixedSchedulingTooltip:
         '!! WARNING !! Antigravity Claude and Anthropic Claude cannot be used in the same context. If you have both Anthropic and Antigravity accounts, enabling this option will cause frequent 400 errors. When enabled, please use the group feature to isolate Antigravity accounts from Anthropic accounts. Make sure you understand this before enabling!!',
+      mixedSchedulingTooltipCursor:
+        'When enabled, Cursor accounts can participate in Anthropic group scheduling via /v1/messages. Requests are automatically converted to Cursor format. Note: Cursor model IDs differ from Anthropic. Configure model mappings to ensure correct routing.',
+      cursorAutoFallback: 'Auto-fallback unmapped models',
+      cursorAutoFallbackHint: 'When enabled (default on), model names not found in the Cursor mapping table (e.g. claude-haiku-4-5) will automatically fall back to the Cursor "default" model, avoiding not_found errors. Disable to pass model names through as-is.',
       aiCreditsBalance: 'AI Credits',
       allowOverages: 'Allow Overages (AI Credits)',
       allowOveragesTooltip:
@@ -2561,8 +2572,39 @@ export default {
                     validateAndCreate: 'Validate & Create',
                     pleaseEnterRefreshToken: 'Please enter Refresh Token',
                     failedToValidateRT: 'Failed to validate Refresh Token'
-                  }
-                },      // Gemini specific (platform-wide)
+                  },
+                // Cursor specific
+                cursor: {
+                  title: 'Cursor Account Authorization',
+                  followSteps: 'Follow these steps to authorize your Cursor account:',
+                  step1GenerateUrl: 'Generate Login URL',
+                  generateAuthUrl: 'Generate Login URL',
+                  step2OpenUrl: 'Open URL in browser and log in',
+                  openUrlDesc: 'Open the login URL in a new tab and sign in with your Cursor account (Email/GitHub/Google).',
+                  importantNotice:
+                    'Important: After logging in, the system will automatically poll for authorization status. Click "Complete Authorization" and wait patiently.',
+                  step3EnterCode: 'Wait for authorization',
+                  authCodeDesc:
+                    'After logging in via browser, the system will automatically detect authorization status. You can also manually paste an Access Token:',
+                  authCode: 'Access Token (optional)',
+                  authCodePlaceholder:
+                    'System will auto-detect login status\nIf auto-detection fails, you can paste your Access Token manually',
+                  authCodeHint: 'Usually no manual input is needed - the system will automatically obtain credentials via polling',
+                  failedToGenerateUrl: 'Failed to generate Cursor login URL',
+                  pollTimeout: 'Cursor login timed out, please retry',
+                  pollFailed: 'Cursor login failed',
+                  pleaseEnterToken: 'Please enter Token',
+                  failedToValidateToken: 'Failed to validate Cursor Token',
+                  // Refresh Token auth
+                  refreshTokenAuth: 'Manual RT Input',
+                  refreshTokenDesc: 'Enter your existing Cursor Refresh Token(s). Supports batch input (one per line). The system will automatically validate and create accounts.',
+                  refreshTokenPlaceholder: 'Paste your Cursor Refresh Token...\nSupports multiple, one per line',
+                  validating: 'Validating...',
+                  validateAndCreate: 'Validate & Create',
+                  pleaseEnterRefreshToken: 'Please enter Refresh Token',
+                  failedToValidateRT: 'Failed to validate Refresh Token'
+                }
+                },
       gemini: {
         helpButton: 'Help',
         helpDialog: {
@@ -2706,6 +2748,7 @@ export default {
       soraAccount: 'Sora Account',
       geminiAccount: 'Gemini Account',
       antigravityAccount: 'Antigravity Account',
+      cursorAccount: 'Cursor Account',
       inputMethod: 'Input Method',
       reAuthorizedSuccess: 'Account re-authorized successfully',
       // Test Modal

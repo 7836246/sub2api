@@ -62,6 +62,7 @@ func NormalizeInboundEndpoint(path string) string {
 //   - Anthropic  → /v1/messages
 //   - Gemini     → /v1beta/models
 //   - Sora       → /v1/chat/completions
+//   - Cursor     → /v1/chat/completions
 //   - Antigravity routes may target either Claude or Gemini, so the
 //     inbound endpoint is used to distinguish.
 func DeriveUpstreamEndpoint(inbound, rawRequestPath, platform string) string {
@@ -91,6 +92,15 @@ func DeriveUpstreamEndpoint(inbound, rawRequestPath, platform string) string {
 			return EndpointGeminiModels
 		}
 		return EndpointMessages
+
+	case service.PlatformCursor:
+		// Cursor uses its native RunChat API. The upstream endpoint
+		// mirrors the inbound format: /v1/messages → /v1/messages,
+		// /v1/chat/completions → /v1/chat/completions.
+		if inbound != "" {
+			return inbound
+		}
+		return EndpointChatCompletions
 	}
 
 	// Unknown platform — fall back to inbound.

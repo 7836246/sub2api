@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -49,6 +50,7 @@ type AccountHandler struct {
 	openaiOAuthService      *service.OpenAIOAuthService
 	geminiOAuthService      *service.GeminiOAuthService
 	antigravityOAuthService *service.AntigravityOAuthService
+	cursorOAuthService      *service.CursorOAuthService
 	rateLimitService        *service.RateLimitService
 	accountUsageService     *service.AccountUsageService
 	accountTestService      *service.AccountTestService
@@ -66,7 +68,8 @@ func NewAccountHandler(
 	openaiOAuthService *service.OpenAIOAuthService,
 	geminiOAuthService *service.GeminiOAuthService,
 	antigravityOAuthService *service.AntigravityOAuthService,
-	rateLimitService *service.RateLimitService,
+	cursorOAuthService *service.CursorOAuthService,
+	ratLimitService *service.RateLimitService,
 	accountUsageService *service.AccountUsageService,
 	accountTestService *service.AccountTestService,
 	concurrencyService *service.ConcurrencyService,
@@ -81,7 +84,8 @@ func NewAccountHandler(
 		openaiOAuthService:      openaiOAuthService,
 		geminiOAuthService:      geminiOAuthService,
 		antigravityOAuthService: antigravityOAuthService,
-		rateLimitService:        rateLimitService,
+		cursorOAuthService:      cursorOAuthService,
+		rateLimitService:        ratLimitService,
 		accountUsageService:     accountUsageService,
 		accountTestService:      accountTestService,
 		concurrencyService:      concurrencyService,
@@ -840,6 +844,26 @@ func (h *AccountHandler) refreshSingleAccount(ctx context.Context, account *serv
 				return nil, "", fmt.Errorf("failed to clear account error: %w", clearErr)
 			}
 		}
+	} else if account.Platform == service.PlatformCursor {
+		// Cursor accounts: use SDK client to refresh token
+		refreshToken := account.GetCredential("refresh_token")
+		if refreshToken == "" {
+			return nil, "", infraerrors.BadRequest("NO_REFRESH_TOKEN", "cursor account has no refresh_token")
+		}
+		client := service.NewCursorSDKClient()
+		newAccessToken, newRefreshToken, cErr := client.RefreshToken(ctx, refreshToken)
+		if cErr != nil {
+			return nil, "", fmt.Errorf("failed to refresh cursor token: %w", cErr)
+		}
+		newCredentials = make(map[string]any)
+		for k, v := range account.Credentials {
+			newCredentials[k] = v
+		}
+		newCredentials["access_token"] = newAccessToken
+		if newRefreshToken != "" {
+			newCredentials["refresh_token"] = newRefreshToken
+		}
+		newCredentials["last_refresh_at"] = time.Now().Format(time.RFC3339)
 	} else {
 		// Use Anthropic/Claude OAuth service to refresh token
 		tokenInfo, err := h.oauthService.RefreshAccountToken(ctx, account)
@@ -1519,13 +1543,21 @@ func (h *AccountHandler) GetUsage(c *gin.Context) {
 		return
 	}
 
+	// Check if this is a Cursor account — fetch from Cursor API
+	ctx := c.Request.Context()
+	account, acctErr := h.adminService.GetAccount(ctx, accountID)
+	if acctErr == nil && account != nil && account.Platform == service.PlatformCursor {
+		h.getCursorUsage(c, account)
+		return
+	}
+
 	source := c.DefaultQuery("source", "active")
 
 	var usage *service.UsageInfo
 	if source == "passive" {
-		usage, err = h.accountUsageService.GetPassiveUsage(c.Request.Context(), accountID)
+		usage, err = h.accountUsageService.GetPassiveUsage(ctx, accountID)
 	} else {
-		usage, err = h.accountUsageService.GetUsage(c.Request.Context(), accountID)
+		usage, err = h.accountUsageService.GetUsage(ctx, accountID)
 	}
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -1533,6 +1565,84 @@ func (h *AccountHandler) GetUsage(c *gin.Context) {
 	}
 
 	response.Success(c, usage)
+}
+
+// isCursorAuthError checks if the error indicates an authentication failure (401/unauthenticated).
+func isCursorAuthError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "HTTP 401") ||
+		strings.Contains(msg, "unauthenticated") ||
+		strings.Contains(msg, "ERROR_NOT_LOGGED_IN")
+}
+
+// getCursorUsage fetches plan & usage data from Cursor's API and returns it.
+// When authentication fails (401), returns a degraded response with needs_reauth
+// instead of a 500 error, matching the pattern used by Antigravity/Anthropic.
+func (h *AccountHandler) getCursorUsage(c *gin.Context, account *service.Account) {
+	creds, err := service.GetCursorCredentialsFromAccount(account)
+	if err != nil {
+		response.InternalError(c, "Failed to get Cursor credentials: "+err.Error())
+		return
+	}
+
+	client := service.NewCursorSDKClient()
+	ctx := c.Request.Context()
+
+	result := gin.H{
+		"platform": "cursor",
+	}
+
+	var anyErr error
+
+	// 1. Fetch stripe profile (membership type)
+	_, profileRaw, profileErr := client.GetStripeProfile(ctx, creds)
+	if profileErr == nil && profileRaw != nil {
+		result["stripe_profile"] = profileRaw
+	} else {
+		anyErr = profileErr
+	}
+
+	// 2. Fetch current period usage (plan spend, limits, billing cycle)
+	periodUsage, periodErr := client.GetCurrentPeriodUsage(ctx, creds)
+	if periodErr == nil && periodUsage != nil {
+		result["current_period_usage"] = periodUsage
+	} else if anyErr == nil {
+		anyErr = periodErr
+	}
+
+	// 3. Fetch plan info (plan name, included amount, price)
+	planInfo, planErr := client.GetPlanInfo(ctx, creds)
+	if planErr == nil && planInfo != nil {
+		result["plan_info"] = planInfo
+	} else if anyErr == nil {
+		anyErr = planErr
+	}
+
+	// If ALL calls failed, check if it's an auth error → degraded response
+	if profileErr != nil && periodErr != nil && planErr != nil {
+		if isCursorAuthError(anyErr) {
+			// Return degraded response with needs_reauth flag (same pattern as Antigravity 401)
+			result["needs_reauth"] = true
+			result["error"] = "Authentication expired, please re-authorize"
+			result["error_code"] = "unauthenticated"
+			response.Success(c, result)
+			return
+		}
+		response.InternalError(c, "Failed to fetch Cursor usage: "+anyErr.Error())
+		return
+	}
+
+	// If some calls failed with auth error, still flag it
+	if anyErr != nil && isCursorAuthError(anyErr) {
+		result["needs_reauth"] = true
+		result["error"] = "Partial authentication failure"
+		result["error_code"] = "unauthenticated"
+	}
+
+	response.Success(c, result)
 }
 
 // ClearRateLimit handles clearing account rate limit status
@@ -1824,6 +1934,63 @@ func (h *AccountHandler) GetAvailableModels(c *gin.Context) {
 	// Handle Sora accounts
 	if account.Platform == service.PlatformSora {
 		response.Success(c, service.DefaultSoraModels(nil))
+		return
+	}
+
+	// Handle Cursor accounts: fetch models from Cursor API in real-time
+	if account.Platform == service.PlatformCursor {
+		creds, err := service.GetCursorCredentialsFromAccount(account)
+		if err != nil {
+			// Fallback to default mapping if credentials are unavailable
+			seen := make(map[string]bool)
+			fallbackModels := make([]gin.H, 0)
+			for _, cursorModelID := range service.DefaultCursorModelMapping {
+				if seen[cursorModelID] {
+					continue
+				}
+				seen[cursorModelID] = true
+				fallbackModels = append(fallbackModels, gin.H{
+					"id":           cursorModelID,
+					"display_name": cursorModelID,
+				})
+			}
+			response.Success(c, fallbackModels)
+			return
+		}
+
+		client := service.NewCursorSDKClient()
+		modelsResp, err := client.GetUsableModels(c.Request.Context(), creds)
+		if err != nil {
+			slog.Warn("cursor.GetUsableModels failed, using fallback", "error", err, "account_id", accountID)
+			// Fallback to default mapping on API failure
+			seen := make(map[string]bool)
+			fallbackModels := make([]gin.H, 0)
+			for _, cursorModelID := range service.DefaultCursorModelMapping {
+				if seen[cursorModelID] {
+					continue
+				}
+				seen[cursorModelID] = true
+				fallbackModels = append(fallbackModels, gin.H{
+					"id":           cursorModelID,
+					"display_name": cursorModelID,
+				})
+			}
+			response.Success(c, fallbackModels)
+			return
+		}
+
+		cursorModels := make([]gin.H, 0, len(modelsResp.Models))
+		for _, m := range modelsResp.Models {
+			displayName := m.DisplayName
+			if displayName == "" {
+				displayName = m.ModelID
+			}
+			cursorModels = append(cursorModels, gin.H{
+				"id":           m.ModelID,
+				"display_name": displayName,
+			})
+		}
+		response.Success(c, cursorModels)
 		return
 	}
 

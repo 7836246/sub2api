@@ -197,6 +197,10 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 		return s.testSoraAccountConnection(c, account)
 	}
 
+	if account.Platform == PlatformCursor {
+		return s.testCursorAccountConnection(c, account, modelID)
+	}
+
 	return s.testClaudeAccountConnection(c, account, modelID)
 }
 
@@ -1737,6 +1741,60 @@ func (s *AccountTestService) processOpenAIStream(c *gin.Context, body io.Reader)
 			return s.sendErrorAndEnd(c, errorMsg)
 		}
 	}
+}
+
+// testCursorAccountConnection tests a Cursor account by sending a chat
+// request through CursorSDKClient.RunChat (ConnectRPC BiDi streaming).
+// BiDi is required because the Cursor server sends exec messages that need
+// client-side replies (e.g. requestContextArgs).
+func (s *AccountTestService) testCursorAccountConnection(c *gin.Context, account *Account, modelID string) error {
+	ctx := c.Request.Context()
+
+	// Default model
+	testModelID := modelID
+	if testModelID == "" {
+		testModelID = "default" // Use Cursor's Auto mode
+	}
+
+	// Get credentials
+	creds, err := getCursorCredentials(account)
+	if err != nil {
+		return s.sendErrorAndEnd(c, fmt.Sprintf("Failed to get credentials: %s", err.Error()))
+	}
+
+	// Set SSE headers
+	c.Writer.Header().Set("Content-Type", "text/event-stream")
+	c.Writer.Header().Set("Cache-Control", "no-cache")
+	c.Writer.Header().Set("Connection", "keep-alive")
+	c.Writer.Header().Set("X-Accel-Buffering", "no")
+	c.Writer.Flush()
+
+	// Send test_start event
+	s.sendEvent(c, TestEvent{Type: "test_start", Model: testModelID})
+
+	// Create SDK client and run chat via BiDi (handles exec messages from server)
+	client := NewCursorSDKClient()
+	eventsCh, err := client.RunChat(ctx, creds, CursorChatOptions{
+		Model:   testModelID,
+		Prompt:  "hi",
+		Timeout: 30 * time.Second,
+	})
+	if err != nil {
+		return s.sendErrorAndEnd(c, fmt.Sprintf("Cursor API request failed: %s", err.Error()))
+	}
+
+	// Stream events back to the test modal
+	for event := range eventsCh {
+		if event.Error != nil {
+			return s.sendErrorAndEnd(c, fmt.Sprintf("Cursor API error: [%s] %s", event.Error.Code, event.Error.Message))
+		}
+		if event.TextDelta != "" {
+			s.sendEvent(c, TestEvent{Type: "content", Text: event.TextDelta})
+		}
+	}
+
+	s.sendEvent(c, TestEvent{Type: "test_complete", Success: true})
+	return nil
 }
 
 // sendEvent sends a SSE event to the client

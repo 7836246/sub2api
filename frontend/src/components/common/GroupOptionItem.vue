@@ -93,6 +93,8 @@ const ratePillClass = computed(() => {
       return 'bg-sky-50 text-sky-700 dark:bg-sky-900/20 dark:text-sky-400'
     case 'sora':
       return 'bg-rose-50 text-rose-700 dark:bg-rose-900/20 dark:text-rose-400'
+    case 'cursor':
+      return 'bg-cyan-50 text-cyan-700 dark:bg-cyan-900/20 dark:text-cyan-400'
     default: // antigravity and others
       return 'bg-violet-50 text-violet-700 dark:bg-violet-900/20 dark:text-violet-400'
   }

@@ -20,7 +20,9 @@
                   ? 'from-blue-500 to-blue-600'
                   : isAntigravity
                     ? 'from-purple-500 to-purple-600'
-                    : 'from-orange-500 to-orange-600'
+                    : isCursor
+                      ? 'from-cyan-500 to-cyan-600'
+                      : 'from-orange-500 to-orange-600'
             ]"
           >
             <Icon name="sparkles" size="md" class="text-white" />
@@ -39,7 +41,9 @@
                     ? t('admin.accounts.geminiAccount')
                     : isAntigravity
                       ? t('admin.accounts.antigravityAccount')
-                      : t('admin.accounts.claudeCodeAccount')
+                      : isCursor
+                        ? t('admin.accounts.cursorAccount')
+                        : t('admin.accounts.claudeCodeAccount')
               }}
             </span>
           </div>
@@ -130,7 +134,7 @@
         :show-cookie-option="isAnthropic"
         :allow-multiple="false"
         :method-label="t('admin.accounts.inputMethod')"
-        :platform="isOpenAI ? 'openai' : isSora ? 'sora' : isGemini ? 'gemini' : isAntigravity ? 'antigravity' : 'anthropic'"
+        :platform="isOpenAI ? 'openai' : isSora ? 'sora' : isGemini ? 'gemini' : isAntigravity ? 'antigravity' : isCursor ? 'cursor' : 'anthropic'"
         :show-project-id="isGemini && geminiOAuthType === 'code_assist'"
         @generate-url="handleGenerateUrl"
         @cookie-auth="handleCookieAuth"
@@ -194,6 +198,7 @@ import {
 import { useOpenAIOAuth } from '@/composables/useOpenAIOAuth'
 import { useGeminiOAuth } from '@/composables/useGeminiOAuth'
 import { useAntigravityOAuth } from '@/composables/useAntigravityOAuth'
+import { useCursorOAuth } from '@/composables/useCursorOAuth'
 import type { Account } from '@/types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
@@ -230,6 +235,7 @@ const openaiOAuth = useOpenAIOAuth({ platform: 'openai' })
 const soraOAuth = useOpenAIOAuth({ platform: 'sora' })
 const geminiOAuth = useGeminiOAuth()
 const antigravityOAuth = useAntigravityOAuth()
+const cursorOAuth = useCursorOAuth()
 
 // Refs
 const oauthFlowRef = ref<OAuthFlowExposed | null>(null)
@@ -245,6 +251,7 @@ const isOpenAILike = computed(() => isOpenAI.value || isSora.value)
 const isGemini = computed(() => props.account?.platform === 'gemini')
 const isAnthropic = computed(() => props.account?.platform === 'anthropic')
 const isAntigravity = computed(() => props.account?.platform === 'antigravity')
+const isCursor = computed(() => props.account?.platform === 'cursor')
 const activeOpenAIOAuth = computed(() => (isSora.value ? soraOAuth : openaiOAuth))
 
 // Computed - current OAuth state based on platform
@@ -252,37 +259,42 @@ const currentAuthUrl = computed(() => {
   if (isOpenAILike.value) return activeOpenAIOAuth.value.authUrl.value
   if (isGemini.value) return geminiOAuth.authUrl.value
   if (isAntigravity.value) return antigravityOAuth.authUrl.value
+  if (isCursor.value) return cursorOAuth.loginUrl.value
   return claudeOAuth.authUrl.value
 })
 const currentSessionId = computed(() => {
   if (isOpenAILike.value) return activeOpenAIOAuth.value.sessionId.value
   if (isGemini.value) return geminiOAuth.sessionId.value
   if (isAntigravity.value) return antigravityOAuth.sessionId.value
+  if (isCursor.value) return cursorOAuth.sessionId.value
   return claudeOAuth.sessionId.value
 })
 const currentLoading = computed(() => {
   if (isOpenAILike.value) return activeOpenAIOAuth.value.loading.value
   if (isGemini.value) return geminiOAuth.loading.value
   if (isAntigravity.value) return antigravityOAuth.loading.value
+  if (isCursor.value) return cursorOAuth.loading.value
   return claudeOAuth.loading.value
 })
 const currentError = computed(() => {
   if (isOpenAILike.value) return activeOpenAIOAuth.value.error.value
   if (isGemini.value) return geminiOAuth.error.value
   if (isAntigravity.value) return antigravityOAuth.error.value
+  if (isCursor.value) return cursorOAuth.error.value
   return claudeOAuth.error.value
 })
 
 // Computed
 const isManualInputMethod = computed(() => {
   // OpenAI/Sora/Gemini/Antigravity always use manual input (no cookie auth option)
-  return isOpenAILike.value || isGemini.value || isAntigravity.value || oauthFlowRef.value?.inputMethod === 'manual'
+  return isOpenAILike.value || isGemini.value || isAntigravity.value || isCursor.value || oauthFlowRef.value?.inputMethod === 'manual'
 })
 
 const canExchangeCode = computed(() => {
   const authCode = oauthFlowRef.value?.authCode || ''
   const sessionId = currentSessionId.value
   const loading = currentLoading.value
+  if (isCursor.value) return sessionId && !loading
   return authCode.trim() && sessionId && !loading
 })
 
@@ -322,6 +334,7 @@ const resetState = () => {
   soraOAuth.resetState()
   geminiOAuth.resetState()
   antigravityOAuth.resetState()
+  cursorOAuth.resetState()
   oauthFlowRef.value?.reset()
 }
 
@@ -341,6 +354,28 @@ const handleGenerateUrl = async () => {
     await geminiOAuth.generateAuthUrl(props.account.proxy_id, projectId, geminiOAuthType.value, tierId)
   } else if (isAntigravity.value) {
     await antigravityOAuth.generateAuthUrl(props.account.proxy_id)
+  } else if (isCursor.value) {
+    const ok = await cursorOAuth.generateLoginURL()
+    if (ok) {
+      cursorOAuth.startPolling().then(async (tokenInfo) => {
+        if (tokenInfo && props.account) {
+          try {
+            const credentials = cursorOAuth.buildCredentials(tokenInfo)
+            await adminAPI.accounts.update(props.account.id, {
+              type: 'oauth',
+              credentials
+            })
+            await adminAPI.accounts.clearError(props.account.id)
+            appStore.showSuccess(t('admin.accounts.reAuthorizedSuccess'))
+            emit('reauthorized')
+            handleClose()
+          } catch (err: any) {
+            cursorOAuth.error.value = err.response?.data?.detail || t('admin.accounts.oauth.authFailed')
+            appStore.showError(cursorOAuth.error.value)
+          }
+        }
+      })
+    }
   } else {
     await claudeOAuth.generateAuthUrl(addMethod.value, props.account.proxy_id)
   }
@@ -350,7 +385,7 @@ const handleExchangeCode = async () => {
   if (!props.account) return
 
   const authCode = oauthFlowRef.value?.authCode || ''
-  if (!authCode.trim()) return
+  if (!authCode.trim() && !isCursor.value) return
 
   if (isOpenAILike.value) {
     // OpenAI OAuth flow
@@ -458,6 +493,37 @@ const handleExchangeCode = async () => {
     } catch (error: any) {
       antigravityOAuth.error.value = error.response?.data?.detail || t('admin.accounts.oauth.authFailed')
       appStore.showError(antigravityOAuth.error.value)
+    }
+  } else if (isCursor.value) {
+    cursorOAuth.loading.value = true
+    cursorOAuth.error.value = ''
+
+    try {
+      let tokenInfo = null
+
+      if (authCode.trim()) {
+        tokenInfo = await cursorOAuth.validateToken(authCode.trim())
+      } else {
+        tokenInfo = await cursorOAuth.startPolling()
+      }
+
+      if (!tokenInfo) return
+
+      const credentials = cursorOAuth.buildCredentials(tokenInfo)
+
+      await adminAPI.accounts.update(props.account.id, {
+        type: 'oauth',
+        credentials
+      })
+      await adminAPI.accounts.clearError(props.account.id)
+      appStore.showSuccess(t('admin.accounts.reAuthorizedSuccess'))
+      emit('reauthorized')
+      handleClose()
+    } catch (error: any) {
+      cursorOAuth.error.value = error.response?.data?.detail || t('admin.accounts.oauth.authFailed')
+      appStore.showError(cursorOAuth.error.value)
+    } finally {
+      cursorOAuth.loading.value = false
     }
   } else {
     // Claude OAuth flow

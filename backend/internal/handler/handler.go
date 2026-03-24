@@ -17,6 +17,7 @@ type AdminHandlers struct {
 	OpenAIOAuth      *admin.OpenAIOAuthHandler
 	GeminiOAuth      *admin.GeminiOAuthHandler
 	AntigravityOAuth *admin.AntigravityOAuthHandler
+	CursorOAuth      *admin.CursorOAuthHandler
 	Proxy            *admin.ProxyHandler
 	Redeem           *admin.RedeemHandler
 	Promo            *admin.PromoHandler
@@ -45,6 +46,7 @@ type Handlers struct {
 	OpenAIGateway *OpenAIGatewayHandler
 	SoraGateway   *SoraGatewayHandler
 	SoraClient    *SoraClientHandler
+	CursorGateway *CursorGatewayHandler
 	Setting       *SettingHandler
 	Totp          *TotpHandler
 }
